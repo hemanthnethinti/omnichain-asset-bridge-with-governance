@@ -1,0 +1,49 @@
+services:
+  chain-a:
+    image: ghcr.io/foundry-rs/foundry:latest
+    container_name: chain-a
+    entrypoint: ["anvil"]
+    command: ["--host", "0.0.0.0", "--port", "8545", "--chain-id", "1111", "--block-time", "1"]
+    ports:
+      - "8545:8545"
+    healthcheck:
+      test: ["CMD", "cast", "rpc", "eth_chainId", "--rpc-url", "http://localhost:8545"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  chain-b:
+    image: ghcr.io/foundry-rs/foundry:latest
+    container_name: chain-b
+    entrypoint: ["anvil"]
+    command: ["--host", "0.0.0.0", "--port", "9545", "--chain-id", "2222", "--block-time", "1"]
+    ports:
+      - "9545:9545"
+    healthcheck:
+      test: ["CMD", "cast", "rpc", "eth_chainId", "--rpc-url", "http://localhost:9545"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  relayer:
+    build:
+      context: .
+      dockerfile: relayer/Dockerfile
+    container_name: bridge-relayer
+    restart: on-failure
+    environment:
+      - CHAIN_A_RPC_URL=http://chain-a:8545
+      - CHAIN_B_RPC_URL=http://chain-b:9545
+      - DEPLOYER_PRIVATE_KEY=${DEPLOYER_PRIVATE_KEY}
+      - RELAYER_PRIVATE_KEY=${RELAYER_PRIVATE_KEY:-${DEPLOYER_PRIVATE_KEY}}
+      - CONFIRMATION_DEPTH=${CONFIRMATION_DEPTH:-3}
+      - DB_PATH=${DB_PATH:-./data/processed_nonces.json}
+      - POLL_INTERVAL_MS=${POLL_INTERVAL_MS:-2500}
+    volumes:
+      - ./relayer_data:/usr/src/app/data
+      - ./deployments:/usr/src/app/deployments
+    depends_on:
+      chain-a:
+        condition: service_healthy
+      chain-b:
+        condition: service_healthy

@@ -1,0 +1,8 @@
+node_modules/
+artifacts/
+cache/
+coverage/
+.env
+relayer_data/
+deployments/
+*.log
