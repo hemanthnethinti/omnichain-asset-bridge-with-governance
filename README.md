@@ -22,13 +22,16 @@ The project is designed to be runnable end-to-end with a single Docker command a
 ## Quick start (Docker, recommended)
 
 1. Create environment file:
+
    - PowerShell: `Copy-Item .env.example .env`
    - Bash: `cp .env.example .env`
 
 2. Build and start everything:
+
    - `docker compose up -d --build`
 
 3. Verify services:
+
    - `docker compose ps`
    - `docker compose logs -f relayer`
 
@@ -108,6 +111,26 @@ Use `.env.example` as reference. Important variables:
 10. Governance-triggered pause: integration tests
 11. Relayer crash recovery test: `tests/integration/relayer-recovery.e2e.test.js`
 12. Environment example file: `.env.example`
+
+## Troubleshooting
+
+### Docker chains are running but RPC is unreachable
+
+If `curl`/JSON-RPC calls to `localhost:8545` or `localhost:9545` fail while containers look up, verify these points:
+
+- Anvil must bind to `0.0.0.0` inside the container (not `127.0.0.1`).
+- In `docker-compose.yml`, set `entrypoint: ["anvil"]` and pass arguments in `command` (host/port/chain-id).
+- If you use Foundry image healthchecks, avoid `curl` (not always installed). Use `cast` instead, for example:
+  - `cast chain-id --rpc-url http://localhost:8545 >/dev/null 2>&1`
+
+Quick verification commands:
+
+- `docker logs chain-a | tail -n 20`
+- `docker logs chain-b | tail -n 20`
+- PowerShell:
+  - `$body = '{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}'`
+  - `Invoke-RestMethod -Uri 'http://localhost:8545' -Method Post -ContentType 'application/json' -Body $body`
+  - `Invoke-RestMethod -Uri 'http://localhost:9545' -Method Post -ContentType 'application/json' -Body $body`
 
 ## Notes
 
